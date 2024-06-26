@@ -5,15 +5,13 @@ import {
   Pressable,
   StyleSheet,
   Platform,
-  PermissionsAndroid
 } from 'react-native';
-import { TextInput } from 'react-native-paper';
+import { Snackbar, TextInput } from 'react-native-paper';
 import { Utils } from '../utils/utils';
 import SelectDropdown from 'react-native-select-dropdown';
 import { OrientationLocker, PORTRAIT } from 'react-native-orientation-locker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { HttpService } from '../_services/httpservices';
-import Geolocation from '@react-native-community/geolocation';
 
 
 const ShortAttendanceScreen = ({ navigation }: any) => {
@@ -22,12 +20,16 @@ const ShortAttendanceScreen = ({ navigation }: any) => {
   const http = new HttpService();
 
   const [date, setDate] = useState(new Date())
-  
   const [showPicker, setShowPicker] = useState(false)
   const [attendanceDate, setAttendanceDate] = useState(date.getDate() + '-' + (date.getMonth() + 1) + '-' + date.getFullYear())
-  const [grade, setGrade] = useState();
-  const [no_of_male, setMaleCount] = useState(0);
-  const [no_of_female, setFemaleCount] = useState(0);
+  const [grade, setGrade] = useState('');
+  const [no_of_male, setMaleCount] = useState(-1);
+  const [no_of_female, setFemaleCount] = useState(-1);
+  const [message, setMessage] = useState('')
+  const [visible, setVisible] = React.useState(false);
+
+  const onToggleSnackBar = () => setVisible(!visible);
+  const onDismissSnackBar = () => setVisible(false);
 
   const max_date = new Date()
 
@@ -56,23 +58,31 @@ const ShortAttendanceScreen = ({ navigation }: any) => {
   }
 
   const submit = async () => {
-    let param = {
-      attendance_date: date,
-      grade: grade,
-      no_of_male: no_of_male,
-      no_of_female: no_of_female,
+    if (grade != '' && no_of_female != -1 && no_of_male != -1) {
+      let param = {
+        attendance_date: date,
+        grade: grade,
+        no_of_male: no_of_male,
+        no_of_female: no_of_female,
+      }
+      let decrypted_result: any;
+      await http.authHttpPostRequest('/attendance/addShortAttendance', param)
+        .then(response => response.json())
+        .then(text => {
+          decrypted_result = utils.decrypt(text.encryptResult)
+        })
+        .catch(err => console.log(err))
+      let result = JSON.parse(decrypted_result);
+      if (result.success) {
+        navigation.navigate('Home')
+      }
     }
-    let decrypted_result: any;
-    await http.authHttpPostRequest('/attendance/addShortAttendance', param)
-      .then(response => response.json())
-      .then(text => {
-        decrypted_result = utils.decrypt(text.encryptResult)
-      })
-      .catch(err => console.log(err))
-    let result = JSON.parse(decrypted_result);
-    if (result.success) {
-      navigation.navigate('Home')
+    else {
+      setMessage("Fill all details");
+      onToggleSnackBar();
+
     }
+    
   }
 
 
@@ -128,10 +138,21 @@ const ShortAttendanceScreen = ({ navigation }: any) => {
 
 
       </View>
-      
+
       <Pressable style={{ margin: 10, padding: 10, backgroundColor: 'green', borderRadius: 20, alignItems: 'center' }} onPress={() => submit()}>
         <Text style={styles.text}>Submit</Text>
       </Pressable>
+      <Snackbar
+        visible={visible}
+        onDismiss={onDismissSnackBar}
+        action={{
+          label: 'Close',
+          onPress: () => {
+            // Do something
+          },
+        }}>
+        {message}
+      </Snackbar>
     </View>
 
 

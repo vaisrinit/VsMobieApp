@@ -12,7 +12,7 @@ import ImagePicker from 'react-native-image-crop-picker';
 import { OrientationLocker, PORTRAIT } from 'react-native-orientation-locker';
 import { HttpService } from '../_services/httpservices';
 import { Utils } from '../utils/utils';
-import { Avatar, Card, Snackbar, TextInput, ActivityIndicator, MD2Colors } from 'react-native-paper';
+import {  ActivityIndicator, MD2Colors } from 'react-native-paper';
 
 const CenterPhotoScreen = ({ navigation }: any) => {
 
@@ -33,22 +33,22 @@ const CenterPhotoScreen = ({ navigation }: any) => {
   const takePhoto = async () => {
     let img_base64;
     let decrypted_result: any;
-    let image:any = await ImagePicker.openCamera({
+    let image: any = await ImagePicker.openCamera({
       width: 2000,
       height: 2000,
-      includeBase64:true,
+      includeBase64: true,
       cropping: false
     })
     img_base64 = image['data']
-    console.log(img_base64);
     setIsLoading(true)
 
     let param = {
-      image: img_base64,
       latitude: latitude,
       longitude: longitude,
       programme: HttpService.usr.programme_name,
-      attendance_date: new Date()
+      attendance_date: new Date(),
+      userId:HttpService.usr.user_id,
+      image:img_base64
     }
     await http.authHttpPostRequest('/attendance/uploadPhoto', param)
       .then(response => response.json())
@@ -60,6 +60,28 @@ const CenterPhotoScreen = ({ navigation }: any) => {
     if (result.success) {
       navigation.navigate('Home')
     }
+
+    // let param = {
+    //   latitude: latitude,
+    //   longitude: longitude,
+    //   programme: HttpService.usr.programme_name,
+    //   attendance_date: new Date(),
+    //   userId:HttpService.usr.user_id,
+    //   image:image.path
+    // }
+
+    // await http.authImageUpload('/attendance/uploadPhoto', param)
+    //   .then(response => response.json())
+    //   .then(text => {
+    //     decrypted_result = utils.decrypt(text.encryptResult)
+    //   })
+    //   .catch(err => console.log(err))
+    // let result = JSON.parse(decrypted_result);
+    // console.log(result)
+    // if (result.success) {
+    //   navigation.navigate('Home')
+    // }
+
     setIsLoading(false)
   }
 

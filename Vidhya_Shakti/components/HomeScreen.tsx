@@ -20,6 +20,7 @@ const HomeScreen = ({ navigation }: any) => {
       <Pressable style={styles.buttons} onPress={() => navigation.navigate('MCQ')}>
         <Text style={styles.text}>MCQ</Text>
       </Pressable>
+      
     </View>
   );
 }
