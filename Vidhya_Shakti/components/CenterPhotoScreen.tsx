@@ -7,12 +7,15 @@ import {
   Pressable,
   StyleSheet,
   PermissionsAndroid,
+  Linking,
+  ScrollView,
+  Dimensions,
 } from 'react-native';
 import ImagePicker from 'react-native-image-crop-picker';
 import { OrientationLocker, PORTRAIT } from 'react-native-orientation-locker';
 import { HttpService } from '../_services/httpservices';
 import { Utils } from '../utils/utils';
-import {  ActivityIndicator, MD2Colors } from 'react-native-paper';
+import { ActivityIndicator, Card, MD2Colors, Snackbar } from 'react-native-paper';
 
 const CenterPhotoScreen = ({ navigation }: any) => {
 
@@ -23,125 +26,142 @@ const CenterPhotoScreen = ({ navigation }: any) => {
   const [latitude, setLatitude] = useState(0);
   const [longitude, setLongitude] = useState(0);
 
+  const [message, setMessage] = useState('')
+  const [visible, setVisible] = React.useState(false);
+
   useEffect(() => {
     Geolocation.getCurrentPosition(info => {
       setLatitude(info.coords.latitude);
       setLongitude(info.coords.longitude);
     });
+    requestCameraPermission();
+
   })
 
   const takePhoto = async () => {
-    let img_base64;
     let decrypted_result: any;
-    let image: any = await ImagePicker.openCamera({
-      width: 2000,
-      height: 2000,
-      includeBase64: true,
-      cropping: false
-    })
-    img_base64 = image['data']
-    setIsLoading(true)
-
-    let param = {
-      latitude: latitude,
-      longitude: longitude,
-      programme: HttpService.usr.programme_name,
-      attendance_date: new Date(),
-      userId:HttpService.usr.user_id,
-      image:img_base64
-    }
-    await http.authHttpPostRequest('/attendance/uploadPhoto', param)
-      .then(response => response.json())
-      .then(text => {
-        decrypted_result = utils.decrypt(text.encryptResult)
+    let image: any;
+    try {
+      image = await ImagePicker.openCamera({
+        cropping: true,
+        compressImageQuality: 0.5,
       })
-      .catch(err => console.log(err))
-    let result = JSON.parse(decrypted_result);
-    if (result.success) {
-      navigation.navigate('Home')
+    }
+    catch (err) {
+
     }
 
-    // let param = {
-    //   latitude: latitude,
-    //   longitude: longitude,
-    //   programme: HttpService.usr.programme_name,
-    //   attendance_date: new Date(),
-    //   userId:HttpService.usr.user_id,
-    //   image:image.path
-    // }
+    setIsLoading(true)
+    if (image) {
+      let param = {
+        latitude: latitude,
+        longitude: longitude,
+        programme: HttpService.usr.programme_name,
+        attendance_date: new Date(),
+        userId: HttpService.usr.user_id,
+        ric_id: HttpService.usr.ric_id,
+        image: image.path
+      }
 
-    // await http.authImageUpload('/attendance/uploadPhoto', param)
-    //   .then(response => response.json())
-    //   .then(text => {
-    //     decrypted_result = utils.decrypt(text.encryptResult)
-    //   })
-    //   .catch(err => console.log(err))
-    // let result = JSON.parse(decrypted_result);
-    // console.log(result)
-    // if (result.success) {
-    //   navigation.navigate('Home')
-    // }
+      await http.authImageUpload('/attendance/uploadPhoto', param)
+        .then(response => response.json())
+        .then(text => {
+          decrypted_result = text
+
+        })
+        .catch(err => console.log(err))
+      let result = decrypted_result;
+
+      if (result && result.success) {
+        navigation.navigate('Home', {
+          snackbar: true,
+          snackbarMessage: 'Image Upload successful!',
+        })
+        ImagePicker.clean().then(() => {
+        }).catch(e => {
+
+        });
+      }
+      else {
+        let message = result.message
+        if (message.includes("unique")) {
+          setMessage("Image Already Uploaded for Today!");
+          onToggleSnackBar();
+        }
+
+      }
+    }
+
 
     setIsLoading(false)
   }
 
-  const requestCameraPermission = async () => {
-    try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.CAMERA,
-        {
-          title: "App Camera Permission",
-          message: "App needs access to your camera ",
-          buttonNeutral: "Ask Me Later",
-          buttonNegative: "Cancel",
-          buttonPositive: "OK"
-        }
-      );
-      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        console.log("Camera permission given");
-      } else {
-        console.log("Camera permission denied");
-      }
-    } catch (err) {
-      console.warn(err);
+  const onToggleSnackBar = () => setVisible(!visible);
+  const onDismissSnackBar = () => setVisible(false);
+
+
+  async function requestCameraPermission() {
+    const granted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.CAMERA)
+    if (!granted) {
+      let permission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)
+      if (permission === "never_ask_again")
+        Linking.openSettings()
     }
-  };
-
-  useEffect(() => {
-    requestCameraPermission()
-  })
-
-  // const openImagePicker = () => {
-  //   const options = {
-  //     mediaType: 'photo',
-  //     includeBase64: false,
-  //     maxHeight: 2000,
-  //     maxWidth: 2000,
-  //   };
-
-  //   launchImageLibrary({
-  //     mediaType: 'photo',
-  //     includeBase64: false,
-  //     maxHeight: 2000,
-  //     maxWidth: 2000,
-  //   }, (response) => {
-  //       console.log(response.assets)
-  //   });
-  // };
-
-
+  }
+  const dimensions = Dimensions.get("window");
 
   return (
-    <View style={styles.view}>
-      <OrientationLocker
-        orientation={PORTRAIT}
-      />
-      <ActivityIndicator animating={isLoading} color={MD2Colors.red800} size='large' />
 
-      <Pressable style={{ margin: 10, padding: 10, backgroundColor: 'green', borderRadius: 20, alignItems: 'center' }} onPress={takePhoto}>
-        <Text style={styles.text}>Take Photo</Text>
-      </Pressable>
-    </View>
+    // <View style={styles.view}>
+    // <OrientationLocker
+    //   orientation={PORTRAIT}
+    // />
+    // <ActivityIndicator animating={isLoading} color={MD2Colors.red800} size='large' />
+
+    // <Pressable style={{ margin: 10, padding: 10, backgroundColor: 'green', borderRadius: 20, alignItems: 'center' }} onPress={takePhoto}>
+    //   <Text style={styles.text}>Take Photo</Text>
+    // </Pressable>
+    // <Snackbar
+    //   visible={visible}
+    //   onDismiss={onDismissSnackBar}
+    //   action={{
+    //     label: 'Close',
+    //     onPress: () => {
+    //       // Do something
+    //     },
+    //   }}>
+    //   {message}
+    // </Snackbar>
+    // </View>
+
+    <Card style={{
+      flex: 1, flexDirection: 'column', justifyContent: 'flex-start', padding: 15
+    }}>
+
+      <ScrollView>
+        <OrientationLocker
+          orientation={PORTRAIT}
+        />
+        <ActivityIndicator animating={isLoading} color={MD2Colors.red800} size='large' />
+        <View style={{
+          flex: 1,
+          justifyContent: "center",
+          height: dimensions.height - 250
+        }}>
+        <Pressable style={styles.buttons} onPress={takePhoto}>
+          <Text style={styles.text}>Take Photo</Text>
+        </Pressable>
+      </View>
+
+      <Snackbar
+        visible={visible}
+        onDismiss={onDismissSnackBar}
+      >
+        {message}
+      </Snackbar>
+
+    </ScrollView >
+</Card >
 
 
   )
@@ -155,12 +175,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     borderRadius: 20
   },
-
-  view: {
-    flex: 1,
-    justifyContent: "center"
-  },
-
   text: {
     textAlign: "center",
     color: "white",
@@ -170,3 +184,4 @@ const styles = StyleSheet.create({
 
 
 export default CenterPhotoScreen;
+

@@ -1,11 +1,13 @@
 import { Utils } from "../utils/utils";
-import RNFetchBlob from 'react-native-blob-util';
 
 
 export class HttpService {
 
     // public api_end_point = 'http://192.168.157.154:3001';
-    public api_end_point = 'https://test.appedo.com:9001';
+    public api_end_point = 'http://192.168.130.107:3001';
+    // public api_end_point = 'https://test.appedo.com:9001';
+    // public api_end_point = 'https://shakti.openmentor.net';
+
 
 
     public utils: any;
@@ -65,36 +67,26 @@ export class HttpService {
     }
 
     async authImageUpload(path: any, param: any) {
-        const image = await fetch(param.image)
-        const blob = await image.blob();
+
+        const image = {
+            uri: param.image,
+            type: 'image/jpeg',
+            name: 'image.jpg'
+        }
+        const formData = new FormData()
+        formData.append('image',image)
+        delete param['image']
+        formData.append('data',JSON.stringify(param))
         return fetch(this.api_end_point + path, {
             method: 'POST',
             headers: new Headers({
                 Accept: 'application/json',
-                'Content-Type': 'image/jpeg', //request format
+                'Content-Type': 'multipart/form-data', //request format
                 'Authorization': HttpService.token
             }),
-            body: blob
+            body: formData
         })
     }
-
-    sendImage(path: any, param: any) {
-        try {
-            return RNFetchBlob.fetch('POST', this.api_end_point + path, {
-                'Content-Type': 'multipart/form-data',
-            }, [
-                {
-                    name: 'image',
-                    filename: 'image.jpg',
-                    type: 'image/jpeg',
-                    data: RNFetchBlob.wrap(param.image)
-                }
-            ]);
-        } catch (error) {
-            return error
-        }
-    };
-
     authHttpGetRequest(path: any) {
         return fetch(this.api_end_point + path, {
             method: 'GET',

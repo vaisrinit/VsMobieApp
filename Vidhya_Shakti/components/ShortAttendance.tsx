@@ -5,13 +5,16 @@ import {
   Pressable,
   StyleSheet,
   Platform,
+  Dimensions,
 } from 'react-native';
-import { Snackbar, TextInput } from 'react-native-paper';
+import { Card, Snackbar, TextInput } from 'react-native-paper';
 import { Utils } from '../utils/utils';
 import SelectDropdown from 'react-native-select-dropdown';
 import { OrientationLocker, PORTRAIT } from 'react-native-orientation-locker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { HttpService } from '../_services/httpservices';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons'
+import Geolocation from '@react-native-community/geolocation';
 
 
 const ShortAttendanceScreen = ({ navigation }: any) => {
@@ -28,6 +31,10 @@ const ShortAttendanceScreen = ({ navigation }: any) => {
   const [message, setMessage] = useState('')
   const [visible, setVisible] = React.useState(false);
 
+  const [latitude, setLatitude] = useState(0);
+  const [longitude, setLongitude] = useState(0);
+
+
   const onToggleSnackBar = () => setVisible(!visible);
   const onDismissSnackBar = () => setVisible(false);
 
@@ -36,8 +43,14 @@ const ShortAttendanceScreen = ({ navigation }: any) => {
   const toggleDatePicker = () => {
     setShowPicker(!showPicker)
   }
-  const grades = ['Fifth', "Sixth", "Seventh", "Eighth", "Ninth", "Tenth", "Eleventh", 'Twelfth']
+  const grades = ['5th', "6th", "7th", "8th", "9th", "10th", "11th", '12th']
 
+  useEffect(() => {
+    Geolocation.getCurrentPosition(info => {
+      setLatitude(info.coords.latitude);
+      setLongitude(info.coords.longitude);
+    });
+  })
   const onChange = ({ type }: any, selectedDate: any) => {
     if (type == 'set') {
       const currentDate = selectedDate;
@@ -64,6 +77,9 @@ const ShortAttendanceScreen = ({ navigation }: any) => {
         grade: grade,
         no_of_male: no_of_male,
         no_of_female: no_of_female,
+        latitude: latitude,
+        longitude: longitude,
+        ric_id: HttpService.usr.ric_id
       }
       let decrypted_result: any;
       await http.authHttpPostRequest('/attendance/addShortAttendance', param)
@@ -74,7 +90,20 @@ const ShortAttendanceScreen = ({ navigation }: any) => {
         .catch(err => console.log(err))
       let result = JSON.parse(decrypted_result);
       if (result.success) {
-        navigation.navigate('Home')
+        navigation.navigate('Home',
+          {
+            snackbar: true,
+            snackbarMessage: 'Short Attendance Submitted Successfully!',
+          }
+        )
+      }
+      else {
+        let message = result.message
+        if (message.includes("unique")) {
+          setMessage("Attendance already submitted for this grade today");
+          onToggleSnackBar();
+        }
+
       }
     }
     else {
@@ -82,78 +111,86 @@ const ShortAttendanceScreen = ({ navigation }: any) => {
       onToggleSnackBar();
 
     }
-    
+
   }
+  const dimensions = Dimensions.get("window");
 
 
   return (
-    <View >
-      <OrientationLocker
-        orientation={PORTRAIT}
-      />
-      <View style={{ justifyContent: 'center', flexDirection: 'column' }}>
-        {showPicker && (<DateTimePicker
-          mode='date'
-          display='spinner'
-          value={max_date} onChange={onChange} maximumDate={max_date} minimumDate={max_date}></DateTimePicker>)}
+    <Card style={{
+      flex: 1, flexDirection: 'column', justifyContent: 'flex-start', padding: 15
+    }}>
+      <View style={{
 
-        <Pressable style={{ margin: 20 }} onPress={toggleDatePicker}>
-          <TextInput mode='outlined' label={'Attendance Date'} value={attendanceDate} onChangeText={setAttendanceDate} editable={false}></TextInput>
+        height: dimensions.height -100,
+        flexDirection: 'column'
+      }}>
+        <OrientationLocker
+          orientation={PORTRAIT}
+        />
+        <View style={{ justifyContent: 'center', }}>
+          {showPicker && (<DateTimePicker
+            mode='date'
+            display='spinner'
+            value={max_date} onChange={onChange} maximumDate={max_date} minimumDate={max_date}></DateTimePicker>)}
+
+          <Pressable style={{ margin: 20 }} onPress={toggleDatePicker}>
+            <TextInput mode='outlined' label={'Attendance Date'} value={attendanceDate} onChangeText={setAttendanceDate} editable={false}></TextInput>
+          </Pressable>
+          <Text style={{ marginLeft: 20, fontSize: 20, fontWeight: 'bold', color: '#8d91db' }}>Class</Text>
+          <View style={{ margin: 10, justifyContent: 'center' }}>
+            <SelectDropdown
+              data={grades}
+              onSelect={(selectedItem, index) => {
+                setGrade(selectedItem)
+              }}
+              renderButton={(selectedItem, isOpened) => {
+                return (
+                  <View style={styles.dropdownButtonStyle}>
+                    <View>
+                      <Text style={{ color: 'black', fontSize: 20 }}>
+                        {selectedItem || 'Select Class'}</Text>
+                    </View>
+                    <MaterialIcons name='arrow-drop-down' style={{ fontSize: 30, color: 'green' }}></MaterialIcons>
+                  </View>
+                );
+              }}
+              renderItem={(item, index, isSelected) => {
+                return (
+                  <View style={{ ...styles.dropdownItemStyle, ...(isSelected && { backgroundColor: '#D2D9DF' }) }}>
+                    <Text style={styles.dropdownItemTxtStyle}>{item}</Text>
+                  </View>
+                );
+              }}
+              showsVerticalScrollIndicator={false}
+              dropdownStyle={styles.dropdownMenuStyle}
+            />
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-evenly' }}>
+            <TextInput style={{ width: 150 }} onChangeText={text => setMaleCount(parseInt(text))} outlineColor='blue' activeOutlineColor='green' mode='outlined' keyboardType='number-pad' label={"No of Male"} >
+
+            </TextInput>
+            <TextInput style={{ width: 150 }} onChangeText={text => setFemaleCount(parseInt(text))} outlineColor='blue' activeOutlineColor='green' mode='outlined' keyboardType='number-pad' label={"No of Female"}>
+
+            </TextInput>
+          </View>
+
+
+        </View>
+
+        <Pressable style={{ margin: 10, padding: 10, backgroundColor: 'green', borderRadius: 20, alignItems: 'center' }} onPress={() => submit()}>
+          <Text style={styles.text}>Submit</Text>
         </Pressable>
-        <Text style={{ marginLeft: 20, fontSize: 20, fontWeight: 'bold' }}>Class</Text>
-        <View style={{ margin: 10, justifyContent: 'center' }}>
-          <SelectDropdown
-            data={grades}
-            onSelect={(selectedItem, index) => {
-              setGrade(selectedItem)
-            }}
-            renderButton={(selectedItem, isOpened) => {
-              return (
-                <View style={styles.dropdownButtonStyle}>
-                  <Text style={styles.dropdownButtonTxtStyle}>
-                    {selectedItem || 'Select Class'}
-                  </Text>
-                </View>
-              );
-            }}
-            renderItem={(item, index, isSelected) => {
-              return (
-                <View style={{ ...styles.dropdownItemStyle, ...(isSelected && { backgroundColor: '#D2D9DF' }) }}>
-                  <Text style={styles.dropdownItemTxtStyle}>{item}</Text>
-                </View>
-              );
-            }}
-            showsVerticalScrollIndicator={false}
-            dropdownStyle={styles.dropdownMenuStyle}
-          />
-        </View>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-evenly' }}>
-          <TextInput style={{ width: 150 }} onChangeText={text => setMaleCount(parseInt(text))} outlineColor='blue' activeOutlineColor='green' mode='outlined' keyboardType='number-pad' label={"No of Male"} >
-
-          </TextInput>
-          <TextInput style={{ width: 150 }} onChangeText={text => setFemaleCount(parseInt(text))} outlineColor='blue' activeOutlineColor='green' mode='outlined' keyboardType='number-pad' label={"No of Female"}>
-
-          </TextInput>
-        </View>
-
 
       </View>
-
-      <Pressable style={{ margin: 10, padding: 10, backgroundColor: 'green', borderRadius: 20, alignItems: 'center' }} onPress={() => submit()}>
-        <Text style={styles.text}>Submit</Text>
-      </Pressable>
       <Snackbar
         visible={visible}
         onDismiss={onDismissSnackBar}
-        action={{
-          label: 'Close',
-          onPress: () => {
-            // Do something
-          },
-        }}>
+      >
         {message}
       </Snackbar>
-    </View>
+    </Card>
+
 
 
   )
@@ -161,29 +198,29 @@ const ShortAttendanceScreen = ({ navigation }: any) => {
 
 const styles = StyleSheet.create({
   dropdownButtonStyle: {
-    borderColor: '#000000',
+    // borderColor: '#000000',
     height: 50,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#cacdf4',
     borderRadius: 12,
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 12,
   },
   dropdownButtonTxtStyle: {
-    borderColor: '#000000',
+    borderColor: '#cacdf4',
     flex: 1,
     fontSize: 18,
     fontWeight: '500',
-    color: '#151E26',
+    color: '#cacdf4',
   },
   dropdownMenuStyle: {
-    borderColor: '#000000',
-    backgroundColor: '#E9ECEF',
+    borderColor: '#cacdf4',
+    backgroundColor: '#cacdf4',
     borderRadius: 8,
   },
   dropdownItemStyle: {
-    borderColor: '#000000',
+    borderColor: '#cacdf4',
     width: '100%',
     flexDirection: 'row',
     paddingHorizontal: 12,
@@ -192,7 +229,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   dropdownItemTxtStyle: {
-    borderColor: '#000000',
+    borderColor: '#cacdf4',
     flex: 1,
     fontSize: 18,
     fontWeight: '500',
@@ -207,10 +244,6 @@ const styles = StyleSheet.create({
     borderRadius: 20
   },
 
-  view: {
-    flex: 1,
-    justifyContent: "center"
-  },
 
   text: {
     textAlign: "center",

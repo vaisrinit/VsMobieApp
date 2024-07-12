@@ -1,27 +1,70 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Text,
   View,
   Pressable,
   StyleSheet,
+  ScrollView,
+  Dimensions,
 } from 'react-native';
 import { LANDSCAPE, OrientationLocker, PORTRAIT } from 'react-native-orientation-locker';
 
-const HomeScreen = ({ navigation }: any) => {
+import { Button, Card, Snackbar } from 'react-native-paper';
+
+const HomeScreen = ({ navigation, route }: any) => {
+
+  const [visible, setVisible] = React.useState(false);
+
+  const onToggleSnackBar = () => setVisible(!visible);
+
+  const onDismissSnackBar = () => setVisible(false);
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    if (route.params?.snackbar) {
+      setVisible(true);
+      setMessage(route.params.snackbarMessage)
+    }
+  }, [route.params]);
+
+  const dimensions = Dimensions.get("window");
 
   return (
-    <View style={styles.view}>
-      <OrientationLocker
-        orientation={PORTRAIT}
-      />
-      <Pressable style={styles.buttons} onPress={() => navigation.navigate('Attendance')} >
-        <Text style={styles.text}>Attendance</Text>
-      </Pressable>
-      <Pressable style={styles.buttons} onPress={() => navigation.navigate('MCQ')}>
-        <Text style={styles.text}>MCQ</Text>
-      </Pressable>
-      
-    </View>
+    <Card style={{
+      flex: 1, flexDirection: 'column', justifyContent: 'flex-start', padding: 15
+    }}>
+      <ScrollView>
+        <OrientationLocker
+          orientation={PORTRAIT}
+        />
+        <View>
+          <Button style={{ alignItems: 'flex-end' }} onPress={() => { navigation.navigate('Login') }}><Text style={{ fontWeight: 'bold', fontSize: 15 }}>Logout</Text></Button>
+        </View>
+
+        <View style={{
+          flex: 1,
+          justifyContent: "center",
+          height: dimensions.height -200
+        }}>
+          <Pressable style={styles.buttons} onPress={() => navigation.navigate('Attendance')} >
+            <Text style={styles.text}>Attendance</Text>
+          </Pressable>
+          <Pressable style={styles.buttons} onPress={() => navigation.navigate('MCQ')}>
+            <Text style={styles.text}>MCQ</Text>
+          </Pressable>
+          <Snackbar style={{ justifyContent: 'center', alignItems: 'center' }}
+            visible={visible}
+            onDismiss={onDismissSnackBar}
+            duration={2000}
+          >
+            <View style={{ alignItems: 'center' }}><Text style={{ color: 'orange', fontSize: 18 }}>{message}</Text></View>
+          </Snackbar>
+        </View>
+
+      </ScrollView >
+    </Card>
+
+
   );
 }
 
@@ -34,10 +77,7 @@ const styles = StyleSheet.create({
     borderRadius: 20
   },
 
-  view: {
-    flex: 1,
-    justifyContent: "center"
-  },
+
 
   text: {
     textAlign: "center",
